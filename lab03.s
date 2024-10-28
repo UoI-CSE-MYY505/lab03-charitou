@@ -1,27 +1,3 @@
-
-# a0 - img  // byte pointer
-# a1 - columns
-# a2 - rows
-# a3 - out  // half-word pointer
-# for t0 = 0 to row-1
-#   for t1 = 0 to column-1
-#      r = *img
-#      r = (r & 0xf8) << 8  # clear 3 LSb and shift to its final position
-#      g = *(img+1)
-#      g = (g & 0xfc) << 3 # clear 2 LSb and shift to its final position
-#      b = *(img+2)
-#      b = b >> 3 # Remove 3 LSb and shift to its position - two birds with one stone
-       /* Alternative code. Probably simpler to understand.
-#      r = r >> 3  # upper bits are 0, no need to mask
-#      g = g >> 2  # upper bits are 0, no need to mask
-#      b = b >> 3  # upper bits are 0, no need to mask
-#      rgb = (r << 11) | (g << 5) | b
-       */
-#      *out = rgb  // half-word store
-#      img += 3  // move to next pixel
-#      out += 1  // move to next half-word
-#   endfor
-# endfor
 .globl rgb888_to_rgb565, showImage
 
 .data
@@ -65,13 +41,6 @@ image888_back:
 # - Change the Height and Width (at top-right part of I/O window),
 #     to the size of the image888 (19, 6 in this example)
 # - This will enable the LED matrix
-# - Uncomment the following and you should see the image on the LED matrix!
-#    la   a0, image888
-#    li   a1, LED_MATRIX_0_BASE
-#    li   a2, LED_MATRIX_0_WIDTH
-#    li   a3, LED_MATRIX_0_HEIGHT
-#    jal  ra, showImage
-# ----- This is where the fun part ends!
 
     la   a0, image888
     la   a3, image565
@@ -87,13 +56,6 @@ image888_back:
     li   a1, 19 # width
     li   a2,  6 # height
     jal  ra, rgb565_to_rgb888
-
-# Display it  - uncomment and enable LED Matrix as descibed above 
-#    la   a0, image888_back
-#    li   a1, LED_MATRIX_0_BASE
-#    li   a2, LED_MATRIX_0_WIDTH
-#    li   a3, LED_MATRIX_0_HEIGHT
-#    jal  ra, showImage
 
     addi a7, zero, 10 
     ecall
@@ -113,16 +75,16 @@ showRowLoop:
     add  t1, zero, zero # column counter
 showColumnLoop:
     bge  t1, a2, outShowColumnLoop
-    lbu  t2, 0(a0) # get red
-    lbu  t3, 1(a0) # get green
-    lbu  t4, 2(a0) # get blue
-    slli t2, t2, 16  # place red at the 3rd byte of "led" word
-    slli t3, t3, 8   #   green at the 2nd
-    or   t4, t4, t3  # combine green, blue
-    or   t4, t4, t2  # Add red to the above
-    sw   t4, 0(a1)   # let there be light at this pixel
-    addi a0, a0, 3   # move on to the next image pixel
-    addi a1, a1, 4   # move on to the next LED
+    lbu  t2, 0(a0) 
+    lbu  t3, 1(a0) 
+    lbu  t4, 2(a0) 
+    slli t2, t2, 16  
+    slli t3, t3, 8   
+    or   t4, t4, t3  
+    or   t4, t4, t2  
+    sw   t4, 0(a1)   
+    addi a0, a0, 3   
+    addi a1, a1, 4  
     addi t1, t1, 1
     j    showColumnLoop
 outShowColumnLoop:
@@ -133,25 +95,25 @@ outShowRowLoop:
 # ----------------------------------------
 
 rgb888_to_rgb565:
-    add  t0, zero, zero # row counter
+    add  t0, zero, zero 
 rowLoop:
     bge  t0, a2, outRowLoop
-    add  t1, zero, zero # column counter
+    add  t1, zero, zero
 columnLoop:
     bge  t1, a1, outColumnLoop
-    lbu  t2, 0(a0)   # r
-    lbu  t3, 1(a0)   # g
-    lbu  t4, 2(a0)   # b
-    andi t2, t2, 0xf8   # clear 3 lsbs
-    slli t2, t2, 8      # shift to final place of R in RGB565 format
-    andi t3, t3, 0xfc   # clear 2 lsbs
-    slli t3, t3, 3      # shift to final place of G in RGB565 format
-    srli t4, t4, 3      # remove 3 lsbs of blue
+    lbu  t2, 0(a0)  
+    lbu  t3, 1(a0)   
+    lbu  t4, 2(a0)   
+    andi t2, t2, 0xf8   
+    slli t2, t2, 8      
+    andi t3, t3, 0xfc   
+    slli t3, t3, 3      
+    srli t4, t4, 3      
     or   t2, t2, t3
     or   t2, t2, t4
-    sh   t2, 0(a3)   # store 16bits (half word) in RGB565 format to output
-    addi a0, a0, 3   # move input pointer to next pixel
-    addi a3, a3, 2   # move ouput pointer to next pixel
+    sh   t2, 0(a3)   
+    addi a0, a0, 3   
+    addi a3, a3, 2  
     addi t1, t1, 1
     j    columnLoop
 outColumnLoop:
@@ -163,24 +125,24 @@ outRowLoop:
 
 
 rgb565_to_rgb888:
-    add  t0, zero, zero # row counter
+    add  t0, zero, zero 
 rowl:
     bge  t0, a2, outRowl
-    add  t1, zero, zero # column counter
+    add  t1, zero, zero 
 columnl:
     bge  t1, a1, outColumnl
     lhu  t2, 0(a0)
-    srli t3, t2, 8  # extract red (3 lsbs still from green)
-    andi t3, t3, 0xf8 # clear 3 lsbs
-    sb   t3, 0(a3) # store in out image
-    srli t3, t2, 3  # extract green (2 lsbs still from blue)
-    andi t3, t3, 0xfc # clear 2 lsbs
-    sb   t3, 1(a3) # store in out image
+    srli t3, t2, 8  
+    andi t3, t3, 0xf8 
+    sb   t3, 0(a3) 
+    srli t3, t2, 3  
+    andi t3, t3, 0xfc 
+    sb   t3, 1(a3) 
     slli t3, t2, 3
-    andi t3, t3, 0xf8 # clear 3 lsbs
-    sb   t3, 3(a3) # store in out image
-    addi a0, a0, 2   # move input pointer to next pixel
-    addi a3, a3, 3   # move ouput pointer to next pixel
+    andi t3, t3, 0xf8 
+    sb   t3, 3(a3)
+    addi a0, a0, 2   
+    addi a3, a3, 3   
     addi t1, t1, 1
     j    columnl
 outColumnl:
